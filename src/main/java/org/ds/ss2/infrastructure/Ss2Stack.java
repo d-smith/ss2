@@ -34,39 +34,11 @@ public class Ss2Stack extends Stack {
                 .build();
 
         Role taskRole = IamComponents.createTaskIamRole(this);
-        Role executionRole = IamComponents.createTaskExecutionIamRole(this);
+        //Role executionRole = IamComponents.createTaskExecutionIamRole(this);
 
-        HealthCheck healthCheck = HealthCheck.builder()
-                .command(List.of("curl localhost:8080/health"))
-                .startPeriod(Duration.seconds(10))
-                .interval(Duration.seconds(5))
-                .timeout(Duration.seconds(2))
-                .retries(3)
-                .build();
-
-        ContainerDefinitionOptions containerDefinitionOpts = ContainerDefinitionOptions.builder()
-                .image(ContainerImage.fromRegistry("dasmith/hello"))
-                .healthCheck(healthCheck)
-                .portMappings(
-                        List.of(PortMapping.builder()
-                                .containerPort(8080)
-                                .hostPort(8080)
-                                .build())
-                )
-                .memoryLimitMiB(512)
-                .logging(AwsLogDriver.Builder.create().streamPrefix("app-mesh-name").build())
-                .environment(Map.of("SERVICE_INSTANCE","A"))
-                .logging(
-                        LogDriver.awsLogs(
-                                AwsLogDriverProps.builder()
-                                        .logGroup(logGroup)
-                                        .streamPrefix("svc")
-                                        .build()
-                        )
-                )
-                .build();
-
-
+        ContainerDefinitionOptions containerDefinitionOpts = ServiceComponents.createContainerDefinitionOptions(
+                "A", logGroup
+        );
         ServiceComponents.instantiateService("s1",this,taskRole,containerDefinitionOpts,vpc,cluster);
 
     }

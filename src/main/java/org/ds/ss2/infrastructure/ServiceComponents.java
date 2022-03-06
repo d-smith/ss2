@@ -1,6 +1,7 @@
 package org.ds.ss2.infrastructure;
 
 import software.amazon.awscdk.CfnOutput;
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.services.ec2.Peer;
 import software.amazon.awscdk.services.ec2.Port;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
@@ -10,13 +11,50 @@ import software.amazon.awscdk.services.elasticloadbalancingv2.*;
 import software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck;
 import software.amazon.awscdk.services.elasticloadbalancingv2.Protocol;
 import software.amazon.awscdk.services.iam.Role;
+import software.amazon.awscdk.services.logs.LogGroup;
 import software.constructs.Construct;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class ServiceComponents {
+
+    public static ContainerDefinitionOptions createContainerDefinitionOptions(String serviceInstance,
+                                                                              LogGroup logGroup) {
+        software.amazon.awscdk.services.ecs.HealthCheck healthCheck = software.amazon.awscdk.services.ecs.HealthCheck.builder()
+                .command(List.of("curl localhost:8080/health"))
+                .startPeriod(Duration.seconds(10))
+                .interval(Duration.seconds(5))
+                .timeout(Duration.seconds(2))
+                .retries(3)
+                .build();
+
+        ContainerDefinitionOptions containerDefinitionOpts = ContainerDefinitionOptions.builder()
+                .image(ContainerImage.fromRegistry("dasmith/hello"))
+                .healthCheck(healthCheck)
+                .portMappings(
+                        List.of(PortMapping.builder()
+                                .containerPort(8080)
+                                .hostPort(8080)
+                                .build())
+                )
+                .memoryLimitMiB(512)
+                .logging(AwsLogDriver.Builder.create().streamPrefix("ss2").build())
+                .environment(Map.of("SERVICE_INSTANCE",serviceInstance))
+                .logging(
+                        LogDriver.awsLogs(
+                                AwsLogDriverProps.builder()
+                                        .logGroup(logGroup)
+                                        .streamPrefix("svc")
+                                        .build()
+                        )
+                )
+                .build();
+
+        return containerDefinitionOpts;
+    }
 
     public static void instantiateService(String basename,
                                           Construct scope,
