@@ -80,6 +80,69 @@ public class ServiceComponents {
         return helloTaskDef;
     }
 
+    public static SecurityGroup createALBSecurityGroup(Construct scope, Vpc vpc) {
+        SecurityGroup albSG = SecurityGroup.Builder.create(scope, "albSG")
+                .vpc(vpc)
+                .allowAllOutbound(true)
+                .build();
+
+        albSG.addIngressRule(Peer.anyIpv4(), Port.tcp(80));
+
+        return albSG;
+    }
+
+    public ApplicationListener createLoadBalancerAndListener(Construct scope,
+                                                             Vpc vpc,
+                                                             SecurityGroup albSG) {
+        ApplicationLoadBalancer loadBalancer = ApplicationLoadBalancer.Builder.create(scope, "alb")
+                .vpc(vpc)
+                .internetFacing(true)
+                .securityGroup(albSG)
+                .build();
+
+        CfnOutput.Builder.create(scope,"albdns")
+                .value(loadBalancer.getLoadBalancerDnsName())
+                .build();
+
+        ApplicationListener applicationListener = loadBalancer.addListener("public-listener", BaseApplicationListenerProps.builder()
+                .port(80)
+                .open(true)
+                .defaultAction(ListenerAction.fixedResponse(
+                        400,FixedResponseOptions.builder()
+                                .messageBody("Invalid or missing tenant id in query string")
+                                .build()
+                ))
+                .build());
+
+        return applicationListener;
+    }
+
+    public static FargateService createService(Construct scope,
+                                               String basename,
+                                               Cluster cluster,
+                                               TaskDefinition taskDefinition,
+                                               Vpc vpc,
+                                               SecurityGroup albSG) {
+        Function<String,String> makeId = (s) -> String.format("%s%s",basename,s);
+        SecurityGroup ecsSG = SecurityGroup.Builder.create(scope, makeId.apply("ecsSG"))
+                .vpc(vpc)
+                .allowAllOutbound(true)
+                .build();
+
+        ecsSG.addIngressRule(albSG, Port.allTcp());
+
+        FargateService fargateService = FargateService.Builder.create(scope, makeId.apply("hs"))
+                .serviceName(makeId.apply("hellosvc"))
+                .cluster(cluster)
+                .taskDefinition(taskDefinition)
+                .desiredCount(1)
+                .securityGroups(List.of(ecsSG))
+                .assignPublicIp(true)
+                .build();
+
+        return fargateService;
+    }
+
     public static void instantiateService(String basename,
                                           Construct scope,
                                           TaskDefinition taskDefinition,
@@ -102,17 +165,17 @@ public class ServiceComponents {
 
         ecsSG.addIngressRule(albSG, Port.allTcp());
 
-        ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(scope, makeId.apply("alb"))
+        ApplicationLoadBalancer loadBalancer = ApplicationLoadBalancer.Builder.create(scope, makeId.apply("alb"))
                 .vpc(vpc)
                 .internetFacing(true)
                 .securityGroup(albSG)
                 .build();
 
         CfnOutput.Builder.create(scope,makeId.apply("albdns"))
-                .value(alb.getLoadBalancerDnsName())
+                .value(loadBalancer.getLoadBalancerDnsName())
                 .build();
 
-        ApplicationListener applicationListener = alb.addListener(makeId.apply("public-listener"), BaseApplicationListenerProps.builder()
+        ApplicationListener applicationListener = loadBalancer.addListener(makeId.apply("public-listener"), BaseApplicationListenerProps.builder()
                 .port(80)
                 .open(true)
                 .defaultAction(ListenerAction.fixedResponse(
@@ -151,13 +214,15 @@ public class ServiceComponents {
 
 
         );
-
+/*
         ApplicationTargetGroup targetGroup = ApplicationTargetGroup.Builder.create(scope, makeId.apply("htg"))
                 .port(8080)
                 .targetType(TargetType.IP)
                 .protocol(ApplicationProtocol.HTTP)
                 .vpc(vpc)
                 .build();
+
+ */
     }
 }
 

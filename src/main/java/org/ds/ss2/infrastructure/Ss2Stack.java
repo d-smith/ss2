@@ -1,6 +1,7 @@
 package org.ds.ss2.infrastructure;
 
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ecs.*;
 import software.amazon.awscdk.services.iam.Role;
@@ -34,6 +35,9 @@ public class Ss2Stack extends Stack {
                 .build();
 
         Role taskRole = IamComponents.createTaskIamRole(this);
+
+        SecurityGroup albSG = ServiceComponents.createALBSecurityGroup(this, vpc);
+
 
         TaskDefinition helloTask = ServiceComponents.createTaskDefinition(
                 "s1", this,"A",logGroup, taskRole
