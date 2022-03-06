@@ -34,12 +34,11 @@ public class Ss2Stack extends Stack {
                 .build();
 
         Role taskRole = IamComponents.createTaskIamRole(this);
-        //Role executionRole = IamComponents.createTaskExecutionIamRole(this);
 
-        ContainerDefinitionOptions containerDefinitionOpts = ServiceComponents.createContainerDefinitionOptions(
-                "A", logGroup
+        TaskDefinition helloTask = ServiceComponents.createTaskDefinition(
+                "s1", this,"A",logGroup, taskRole
         );
-        ServiceComponents.instantiateService("s1",this,taskRole,containerDefinitionOpts,vpc,cluster);
+        ServiceComponents.instantiateService("s1",this,helloTask,vpc,cluster);
 
     }
 }

@@ -21,7 +21,8 @@ import java.util.function.Function;
 
 public class ServiceComponents {
 
-    public static ContainerDefinitionOptions createContainerDefinitionOptions(String serviceInstance,
+
+    private static ContainerDefinitionOptions createContainerDefinitionOptions(String serviceInstance,
                                                                               LogGroup logGroup) {
         software.amazon.awscdk.services.ecs.HealthCheck healthCheck = software.amazon.awscdk.services.ecs.HealthCheck.builder()
                 .command(List.of("curl localhost:8080/health"))
@@ -56,14 +57,15 @@ public class ServiceComponents {
         return containerDefinitionOpts;
     }
 
-    public static void instantiateService(String basename,
-                                          Construct scope,
-                                          Role taskRole,
-                                          ContainerDefinitionOptions containerDefinitionOpts,
-                                          Vpc vpc,
-                                          Cluster cluster) {
+    public static TaskDefinition createTaskDefinition(String basename,
+                                                      Construct scope,
+                                                      String serviceInstance,
+                                                      LogGroup logGroup,
+                                                      Role taskRole) {
 
         Function<String,String> makeId = (s) -> String.format("%s%s",basename,s);
+        ContainerDefinitionOptions containerDefinitionOpts =
+                createContainerDefinitionOptions(serviceInstance,logGroup);
 
         TaskDefinition helloTaskDef = TaskDefinition.Builder.create(scope, makeId.apply("hello-task"))
                 .family("task")
@@ -74,6 +76,17 @@ public class ServiceComponents {
                 .build();
 
         helloTaskDef.addContainer(makeId.apply("hello-container"),containerDefinitionOpts);
+
+        return helloTaskDef;
+    }
+
+    public static void instantiateService(String basename,
+                                          Construct scope,
+                                          TaskDefinition taskDefinition,
+                                          Vpc vpc,
+                                          Cluster cluster) {
+
+        Function<String,String> makeId = (s) -> String.format("%s%s",basename,s);
 
         SecurityGroup albSG = SecurityGroup.Builder.create(scope, makeId.apply("albSG"))
                 .vpc(vpc)
@@ -112,7 +125,7 @@ public class ServiceComponents {
         FargateService fargateService = FargateService.Builder.create(scope, makeId.apply("hs"))
                 .serviceName(makeId.apply("hellosvc"))
                 .cluster(cluster)
-                .taskDefinition(helloTaskDef)
+                .taskDefinition(taskDefinition)
                 .desiredCount(1)
                 .securityGroups(List.of(ecsSG))
                 .assignPublicIp(true)
