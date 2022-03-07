@@ -53,6 +53,14 @@ public class Ss2Stack extends Stack {
         TaskDefinition helloTaskB = ServiceComponents.createTaskDefinition(
                 "t2", this,"B",logGroup, taskRole
         );
+
+        TaskDefinition helloTaskC = ServiceComponents.createTaskDefinition(
+                "t3", this,"C",logGroup, taskRole
+        );
+
+        TaskDefinition helloTaskD = ServiceComponents.createTaskDefinition(
+                "t4", this,"D",logGroup, taskRole
+        );
         //ServiceComponents.instantiateService("s1",this,helloTask,vpc,cluster);
 
         FargateService serviceA = ServiceComponents.createService(
@@ -63,6 +71,15 @@ public class Ss2Stack extends Stack {
                 this, "s2", cluster, helloTaskB, vpc, albSG
         );
 
+        FargateService serviceC = ServiceComponents.createService(
+                this, "s3", cluster, helloTaskC, vpc, albSG
+        );
+
+        FargateService serviceD = ServiceComponents.createService(
+                this, "s4", cluster, helloTaskD, vpc, albSG
+        );
+
+        //alpha
         listener.addTargets("t1", AddApplicationTargetsProps.builder()
                 .port(8080)
                 .targets(List.of(serviceA, serviceB))
@@ -70,7 +87,7 @@ public class Ss2Stack extends Stack {
                         ListenerCondition.queryStrings(
                                 List.of(QueryStringCondition.builder()
                                         .key("tenant")
-                                        .value("foo")
+                                        .value("alpha")
                                         .build()
                                 ))
                 ))
@@ -81,5 +98,62 @@ public class Ss2Stack extends Stack {
                         .build())
                 .build());
 
+        //bravo
+        listener.addTargets("t2", AddApplicationTargetsProps.builder()
+                .port(8080)
+                .targets(List.of(serviceB, serviceC))
+                .conditions(List.of(
+                        ListenerCondition.queryStrings(
+                                List.of(QueryStringCondition.builder()
+                                        .key("tenant")
+                                        .value("bravo")
+                                        .build()
+                                ))
+                ))
+                .priority(2)
+                .healthCheck(software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck.builder()
+                        .path("/health")
+                        .protocol(Protocol.HTTP)
+                        .build())
+                .build());
+
+        //charlie
+        listener.addTargets("t3", AddApplicationTargetsProps.builder()
+                .port(8080)
+                .targets(List.of(serviceC, serviceD))
+                .conditions(List.of(
+                        ListenerCondition.queryStrings(
+                                List.of(QueryStringCondition.builder()
+                                        .key("tenant")
+                                        .value("charlie")
+                                        .build()
+                                ))
+                ))
+                .priority(3)
+                .healthCheck(software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck.builder()
+                        .path("/health")
+                        .protocol(Protocol.HTTP)
+                        .build())
+                .build());
+
+        //delta
+        //bravo
+        listener.addTargets("t4", AddApplicationTargetsProps.builder()
+                .port(8080)
+                .targets(List.of(serviceD, serviceA))
+                .conditions(List.of(
+                        ListenerCondition.queryStrings(
+                                List.of(QueryStringCondition.builder()
+                                        .key("tenant")
+                                        .value("delta")
+                                        .build()
+                                ))
+                ))
+                .priority(4)
+                .healthCheck(software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck.builder()
+                        .path("/health")
+                        .protocol(Protocol.HTTP)
+                        .build())
+                .build());
     }
 }
