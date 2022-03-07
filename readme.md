@@ -13,3 +13,7 @@ Note this instance provides 4 shards, accessible via the URIs
 * /hello?tenant=bravo
 * /hello?tenant=charlie
 * /hello?tenant=delta
+
+Note that from the page output you can see each shard is served by two cells. Each cell 
+has two target groups, with a unique (within the cell) service per target group. They are 
+structured such that it would take the outage of two cells to make a shard unavailable.
